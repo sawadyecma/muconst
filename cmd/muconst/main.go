@@ -1,7 +1,18 @@
 package main
 
-import "github.com/sawadyecma/muconst"
+import (
+	"path"
+
+	"github.com/sawadyecma/muconst"
+)
+
+var rootPath = "/"
 
 func main() {
-	muconst.Exec()
+	muconst.Exec(
+		path.Join(
+			rootPath,
+			"./testdata/src/a/a.go",
+		),
+	)
 }
