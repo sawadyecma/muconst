@@ -18,20 +18,73 @@ func Exec(filepath string) {
 		log.Fatal("Error:", err)
 	}
 
-	structs := parseStructNames(f, fset)
-	fmt.Println(structs)
+	ret := checkHasConstructor(f, fset)
+	fmt.Println(ret)
 }
 
-func parseStructNames(f *ast.File, fset *token.FileSet) map[*ast.Ident]*ast.TypeSpec {
-	structs := map[*ast.Ident]*ast.TypeSpec{}
+func checkHasConstructor(
+	f *ast.File,
+	fset *token.FileSet,
+) map[string]bool {
+	structs := parseStructNames(f, fset)
+	constructors := hasConstructor(f, fset, structs)
+	return constructors
+}
+
+func parseStructNames(f *ast.File, fset *token.FileSet) map[string]*ast.TypeSpec {
+	structs := map[string]*ast.TypeSpec{}
 
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch a := n.(type) {
 		case *ast.TypeSpec:
-			structs[a.Name] = a
+			structs[a.Name.String()] = a
 		}
 		return true
 	})
 
 	return structs
+}
+
+func hasConstructor(
+	f *ast.File,
+	fset *token.FileSet,
+	structs map[string]*ast.TypeSpec,
+) map[string]bool {
+
+	constructors := map[string]bool{}
+	for k := range structs {
+		constructors[k] = false
+	}
+
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch a := n.(type) {
+		case *ast.FuncDecl:
+			funcName := a.Name.String()
+			if funcName[0:3] == "New" {
+				model := funcName[3:]
+				_, ok := structs[model]
+				if ok {
+					constructors[model] = true
+				}
+
+				if a.Type.Results == nil {
+					return true
+				}
+				rets := a.Type.Results.List
+				for i := range rets {
+					v, ok := rets[i].Type.(*ast.Ident)
+					if !ok {
+						return true
+					}
+					_, ok = structs[v.Name]
+					if ok {
+						constructors[model] = true
+					}
+				}
+			}
+		}
+		return true
+	})
+
+	return constructors
 }
