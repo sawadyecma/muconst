@@ -1,0 +1,5 @@
+package muconst
+
+func Exec() {
+
+}
